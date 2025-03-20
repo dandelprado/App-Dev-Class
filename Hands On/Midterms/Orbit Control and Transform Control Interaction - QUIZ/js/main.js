@@ -38,7 +38,7 @@ scene.add(cube3);
 
 const material4 = new THREE.MeshBasicMaterial({ color: 0x008000, wireframe: true });
 const cube4 = new THREE.Mesh(geometry, material4);
-cube4.position.set(0, 0, -4);
+cube4.position.set(0, 0, -2);
 scene.add(cube4);
 
 
@@ -64,10 +64,10 @@ transformControls4.attach(cube4);
 scene.add(transformControls4);
 
 // Disable OrbitControls when using TransformControls
-transformControls.addEventListener('dragging-changed', function (event) {
+/*transformControls.addEventListener('dragging-changed', function (event) {
   orbitControls.enabled = !event.value;
 });
-
+*/
 
 const legend = document.createElement('div');
 legend.style.position = 'absolute';
