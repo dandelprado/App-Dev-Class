@@ -1,0 +1,78 @@
+body, html {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+#ui {
+    position: absolute;
+    left: 0;
+    top: -0.5%;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: center;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+p {
+    font-size: 50px;
+    color: white;
+}
+
+#volumeLabel {
+    color: white;
+    margin: 5px 0;
+    font-weight: bold;
+    z-index: 99;
+}
+
+#volumeSlider {
+    width: 13%;
+    margin-bottom: 20px;
+    z-index: 99;
+    height: 10px;
+    accent-color: #007bff;
+}
+button {
+    padding: 5px 10px;
+    font-size: 50px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#videoElement {
+    display: none;
+}
+
+#videoPlayBtn {
+    z-index: 99;
+    width: 9%;
+    margin-bottom: 10px;
+    align-self: center;
+}
+
+#videoPauseBtn {
+    z-index: 99;
+    width: 9%;
+    margin-bottom: 10px;
+}
+
+#videoResumeBtn {
+    z-index: 99;
+    width: 9%;
+    margin-bottom: 10px;
+}
