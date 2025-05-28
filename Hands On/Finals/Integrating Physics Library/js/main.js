@@ -11,6 +11,10 @@ const bulletArray = [], enemyArray = [];
 const shootVelocity = 25, bulletLife = 5;
 let enemyModel, bulletModel;
 
+let shakeTime = 0;
+const shakeDuration = 0.3; 
+const shakeIntensity = 2;
+
 const moveSpeed = 10;
 const keysPressed = {};
 
@@ -170,6 +174,9 @@ function shootBullet() {
     bullet.cannonBody = body;
     bulletArray.push(bullet);
 
+    shakeTime = shakeDuration;
+    console.log('Screen shake triggered');
+
     setTimeout(() => {
         scene.remove(bullet);
         world.removeBody(body);
@@ -213,6 +220,22 @@ function animate() {
 
     handleMovement(delta);
     detectCollisions();
+
+    const originalPosition = camera.position.clone();
+
+    if (shakeTime > 0) {
+        console.log('Shaking: ${shakeTime} seconds remaining');
+        camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+        camera.position.y += (Math.random() - 0.5) * shakeIntensity;
+        camera.position.z += (Math.random() - 0.5) * shakeIntensity;
+        shakeTime -= delta;
+        if (shakeTime <= 0) {
+            shakeTime = 0;
+
+            camera.position.copy(originalPosition);
+            console.log('Screen shake ended');
+        }
+    }
 
     enemyArray.forEach(enemy => enemy.position.copy(enemy.cannonBody.position));
     bulletArray.forEach(bullet => bullet.position.copy(bullet.cannonBody.position));
@@ -269,3 +292,4 @@ async function init() {
 
     animate();
 }
+
