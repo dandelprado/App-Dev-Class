@@ -8,6 +8,9 @@ import Stats from 'https://unpkg.com/three@0.153.0/examples/jsm/libs/stats.modul
 let renderer, scene, camera, controls, world, statsFPS, statsMemory, statsFrameTime;
 let listener, bulletSound;
 let floorTexture;
+let dustParticles;
+const dustParticleCount = 8000;
+const dustArea = 500;
 
 const clock = new THREE.Clock();
 const bulletArray = [], enemyArray = [];
@@ -141,6 +144,65 @@ function createFloor() {
     floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     world.addBody(floorBody);
 }
+
+function createDustParticles() {
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions  = new Float32Array(dustParticleCount * 3);
+    const colors     = new Float32Array(dustParticleCount * 3);
+    const sizes      = new Float32Array(dustParticleCount);
+    const opacities  = new Float32Array(dustParticleCount);
+
+    for (let i = 0; i < dustParticleCount; i++) {
+        positions[i * 3]     = (Math.random() - 0.5) * 1000;
+        positions[i * 3 + 1] = Math.random() * 10;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 1000;
+
+        const color = new THREE.Color(0xd2b48c)
+            .lerp(new THREE.Color(0xf5f5dc), Math.random() * 0.3);
+        colors[i * 3]     = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+
+        sizes[i]     = Math.random() * 0.3 + 0.1; 
+        opacities[i] = Math.random() * 0.5 + 0.3;
+    }
+
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color',    new THREE.BufferAttribute(colors,    3));
+    particleGeometry.setAttribute('size',     new THREE.BufferAttribute(sizes,     1));
+    particleGeometry.setAttribute('opacity',  new THREE.BufferAttribute(opacities, 1));
+
+    const canvas  = document.createElement('canvas');
+    canvas.width  = 32;
+    canvas.height = 32;
+    const ctx     = canvas.getContext('2d');
+    ctx.beginPath();
+    ctx.arc(16, 16, 12, 0, Math.PI * 2);
+    const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 12);
+    gradient.addColorStop(0, 'rgba(245, 225, 220, 0.9)');
+    gradient.addColorStop(1, 'rgba(245, 225, 220, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    const texture = new THREE.CanvasTexture(canvas);
+
+    const particleMaterial = new THREE.PointsMaterial({
+        size:             0.5,
+        sizeAttenuation:  true,
+        map:              texture,
+        transparent:      true,
+        vertexColors:     true,
+        opacity:          0.7,
+        depthWrite:       false,
+        blending:         THREE.AdditiveBlending
+    });
+
+    dustParticles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(dustParticles);
+
+    console.log('Dust particles created and added:', dustParticles);
+}
+
 
 const uiContainer = document.createElement('div');
 uiContainer.style.position = 'absolute';
@@ -280,7 +342,6 @@ function animate() {
     const originalPosition = camera.position.clone();
 
     if (shakeTime > 0) {
-        console.log(`Shaking: ${shakeTime} seconds remaining`);
         camera.position.x += (Math.random() - 0.5) * shakeIntensity;
         camera.position.y += (Math.random() - 0.5) * shakeIntensity;
         camera.position.z += (Math.random() - 0.5) * shakeIntensity;
@@ -288,12 +349,11 @@ function animate() {
         if (shakeTime <= 0) {
             shakeTime = 0;
             camera.position.copy(originalPosition);
-            console.log('Screen shake ended');
         }
     }
 
     if (floorTexture) {
-        floorTexture.offset.x += camera.position.x * 0.0015; 
+        floorTexture.offset.x += camera.position.x * 0.0015;
         floorTexture.offset.y += camera.position.z * 0.0001;
     }
 
@@ -313,20 +373,37 @@ function animate() {
 
     enemyArray.forEach(enemy => enemy.position.copy(enemy.cannonBody.position));
 
-    const floorLevel = 1;
-    if (camera.position.y < floorLevel) {
-        camera.position.y = floorLevel;
+    if (camera.position.y < 1) {
+        camera.position.y = 1;
     }
 
     const maxPitch = Math.PI / 2.5;
     const minPitch = -Math.PI / 2.5;
 
     const pitchObject = controls.getObject().children.find(child => child.isCamera);
-
     if (pitchObject) {
         pitchObject.rotation.x = THREE.MathUtils.clamp(pitchObject.rotation.x, minPitch, maxPitch);
     }
 
+    if (dustParticles && dustParticles.geometry && dustParticles.material && dustParticles.material.uniforms) {
+        const positions = dustParticles.geometry.attributes.position.array;
+        const time = clock.getElapsedTime();
+        dustParticles.material.uniforms.time.value = time;
+        dustParticles.material.uniforms.cameraPos.value.copy(camera.position);
+        for (let i = 0; i < dustParticleCount; i++) {
+            positions[i * 3] += Math.sin(time + i * 0.1) * 0.005 * delta;
+            positions[i * 3 + 1] += Math.cos(time + i * 0.2) * 0.003 * delta;
+            positions[i * 3 + 2] += Math.sin(time + i * 0.3) * 0.005 * delta;
+
+            const camX = camera.position.x;
+            const camZ = camera.position.z;
+            if (positions[i * 3] - camX > 500) positions[i * 3] -= 1000;
+            if (positions[i * 3] - camX < -500) positions[i * 3] += 1000;
+            if (positions[i * 3 + 2] - camZ > 500) positions[i * 3 + 2] -= 1000;
+            if (positions[i * 3 + 2] - camZ < -500) positions[i * 3 + 2] += 1000;
+        }
+        dustParticles.geometry.attributes.position.needsUpdate = true;
+    }
     statsFPS.update();
     statsMemory.update();
     statsFrameTime.update();
@@ -342,6 +419,9 @@ async function init() {
     await loadAudio();
     setupPhysics();
     createFloor();
+    console.log('Creating dust particles...');
+    createDustParticles();
+    console.log('Dust particles created:', dustParticles);
     createEnemies(0);
     createListeners();
 
