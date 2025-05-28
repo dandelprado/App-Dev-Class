@@ -5,7 +5,7 @@
 5. Class Vignette - 0.2 opacity - DONE
 6. Create floor with parallax effect - DONE
 7. Bullet Logic Bounce - DONE
-8. Dust Particle Logic
+8. Dust Particle Logic - DONE
 9. Prevent the camera from going beneath the floor level
 10. Create a minimum distance between enemies, enemies should not collide
 

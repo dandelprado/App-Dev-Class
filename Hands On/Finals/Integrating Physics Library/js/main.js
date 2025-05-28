@@ -92,6 +92,13 @@ function loadGLTF(path) {
 function setupPhysics() {
     world = new CANNON.World();
     world.gravity.set(0, -9.82, 0);
+    world.broadphase = new CANNON.NaiveBroadphase();
+    world.solver.iterations = 10;
+    world.solver.tolerance = 0.001;
+
+    world.addEventListener('postStep', () => {
+    
+    });
 }
 
 function createListeners() {
@@ -137,11 +144,11 @@ function createFloor() {
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const floorShape = new CANNON.Plane();
-    const floorBody = new CANNON.Body({ mass: 0 });
+    // Use a finite box instead of an infinite plane
+    const floorShape = new CANNON.Box(new CANNON.Vec3(500, 0.1, 500)); // Width 1000, depth 1000, height 0.2
+    const floorBody = new CANNON.Body({ mass: 0 }); // Static body
     floorBody.addShape(floorShape);
-    floorBody.position.set(0, -0.01, 0);
-    floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    floorBody.position.set(0, 0, 0); // Align with the visual floor (y = 0)
     world.addBody(floorBody);
 }
 
@@ -230,22 +237,54 @@ function createEnemies(amount) {
     });
     enemyArray.length = 0;
 
+    const minDistance = 5; 
+    const maxAttempts = 50; 
+
     for (let i = 0; i < amount; i++) {
+        let validPosition = false;
+        let position;
+        let attempts = 0;
+
+        while (!validPosition && attempts < maxAttempts) {
+            position = new THREE.Vector3(
+                Math.random() * 500 - 250,
+                0.5,
+                Math.random() * 500 - 250
+            );
+
+            validPosition = true;
+            for (let j = 0; j < enemyArray.length; j++) {
+                const otherEnemy = enemyArray[j];
+                const distance = position.distanceTo(otherEnemy.position);
+                if (distance < minDistance) {
+                    validPosition = false;
+                    break;
+                }
+            }
+            attempts++;
+        }
+
+        if (!validPosition) {
+            console.warn(`Could not find valid position for enemy ${i + 1} after ${maxAttempts} attempts. Skipping.`);
+            continue;
+        }
+
         const enemy = enemyModel.clone();
-        enemy.position.set(Math.random() * 500 - 250, 0, Math.random() * 500 - 250);
+        enemy.position.copy(position);
         scene.add(enemy);
+        console.log(`Spawning enemy at position: ${enemy.position.x}, ${enemy.position.y}, ${enemy.position.z}`);
 
         const shape = new CANNON.Box(new CANNON.Vec3(0.5, 1, 0.5));
         const body = new CANNON.Body({ mass: 1 });
         body.addShape(shape);
-        body.position.copy(enemy.position);
+        body.position.set(enemy.position.x, enemy.position.y, enemy.position.z);
+        body.velocity.set(0, 0.1, 0);
         world.addBody(body);
 
         enemy.cannonBody = body;
         enemyArray.push(enemy);
     }
 }
-
 function shootBullet() {
     if (!bulletModel) return;
 
@@ -254,14 +293,14 @@ function shootBullet() {
     scene.add(bullet);
 
     const shape = new CANNON.Sphere(0.2);
-    const body = new CANNON.Body({ mass: 10.1 });
+    const body = new CANNON.Body({ mass: 5 });
     body.addShape(shape);
     body.position.copy(camera.position);
     body.position.y += 0.5;
 
     const forward = new THREE.Vector3();
     camera.getWorldDirection(forward);
-    forward.multiplyScalar(shootVelocity);
+    forward.multiplyScalar(shootVelocity * 0.5);
     body.velocity.set(forward.x, forward.y, forward.z);
 
     world.addBody(body);
@@ -301,6 +340,7 @@ function handleMovement(delta) {
 
     direction.normalize();
     direction.applyQuaternion(camera.quaternion);
+    direction.y = 0;
     camera.position.addScaledVector(direction, moveSpeed * delta);
 }
 
@@ -334,7 +374,7 @@ function detectCollisions() {
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
-    world.step(1 / 60, delta);
+    world.step(1 / 60, delta, 3);
 
     handleMovement(delta);
     detectCollisions();
@@ -371,11 +411,35 @@ function animate() {
         }
     });
 
-    enemyArray.forEach(enemy => enemy.position.copy(enemy.cannonBody.position));
+    enemyArray.forEach(enemy => {
+        enemy.position.copy(enemy.cannonBody.position);
+    });
 
-    if (camera.position.y < 1) {
-        camera.position.y = 1;
-    }
+    const cameraMinY = 1.0;
+    camera.position.y = Math.max(camera.position.y, cameraMinY);
+
+    enemyArray.forEach(enemy => {
+        const body = enemy.cannonBody;
+        const halfHeight = 1.0;
+        const minY = halfHeight + 0.1;
+        if (body.position.y < minY) {
+            body.position.y = minY;
+            body.velocity.y = 0;
+        }
+        enemy.position.copy(body.position);
+    });
+
+    bulletArray.forEach(bullet => {
+        const body = bullet.cannonBody;
+        const radius = 0.2;
+        const minY = radius + 0.1;
+        if (body.position.y < minY) {
+            body.position.y = minY;
+            body.velocity.y = 0;
+        }
+        bullet.position.copy(body.position);
+    });
+
 
     const maxPitch = Math.PI / 2.5;
     const minPitch = -Math.PI / 2.5;
@@ -404,6 +468,7 @@ function animate() {
         }
         dustParticles.geometry.attributes.position.needsUpdate = true;
     }
+
     statsFPS.update();
     statsMemory.update();
     statsFrameTime.update();
@@ -446,3 +511,4 @@ async function init() {
 
     animate();
 }
+
