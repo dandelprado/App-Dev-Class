@@ -32,3 +32,53 @@ html {
     pointer-events: none !important;
 }
 
+#stats-container {
+    position: absolute;
+    bottom: 10px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+#stats-container > div {
+    position: relative !important;
+    pointer-events: auto;
+    transform: scale(1);
+    transform-origin: bottom center;
+}
+
+#stats-fps::before {
+    content: "FPS";
+    position: absolute;
+    top: -18px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    color: #fff;
+}
+
+#stats-memory::before {
+    content: "Memory (MB)";
+    position: absolute;
+    top: -18px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    color: #fff;
+}
+
+#stats-frametime::before {
+    content: "Frame Time (ms)";
+    position: absolute;
+    top: -18px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    color: #fff;
+}
