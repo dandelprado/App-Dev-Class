@@ -7,6 +7,7 @@ import Stats from 'https://unpkg.com/three@0.153.0/examples/jsm/libs/stats.modul
 
 let renderer, scene, camera, controls, world, statsFPS, statsMemory, statsFrameTime;
 let listener, bulletSound;
+let floorTexture;
 
 const clock = new THREE.Clock();
 const bulletArray = [], enemyArray = [];
@@ -32,7 +33,7 @@ function setupScene() {
     scene = new THREE.Scene();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
-    renderer.setClearColor(0x87ceeb, 1); // Set sky-blue background
+    renderer.setClearColor(0x87ceeb, 1);
     document.getElementById('threejsContainer').appendChild(renderer.domElement);
 
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -116,7 +117,18 @@ function createListeners() {
 
 function createFloor() {
     const floorGeo = new THREE.PlaneGeometry(1000, 1000);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+    
+    const textureLoader = new THREE.TextureLoader();
+    floorTexture = textureLoader.load('assets/textures/floor_texture.png');
+    floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
+    floorTexture.repeat.set(50, 50);
+
+    const floorMat = new THREE.MeshStandardMaterial({ 
+        map: floorTexture,
+        color: 0x999999,
+        roughness: 0.8,
+        metalness: 0.2
+    });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
@@ -137,11 +149,11 @@ uiContainer.style.left = '38%';
 uiContainer.style.zIndex = '100';
 uiContainer.style.color = '#fff';
 uiContainer.innerHTML = `
-                <label> Click Spawn button to add:
-                    <input id="enemyCount" type="number" min="1" max="100" value="100" style="width: 60px; padding: 5px; border-radius: 15px; border: 1px solid #b8860b; margin-bottom: 10px;"/></label>
-                <label>enemies
-                <button id="spawnEnemies" style="padding: 5px 10px; border-radius: 5px; border: none; background-color: #007acc; color: white; cursor: pointer;">Spawn</button></label>
-            `;
+    <label> Click Spawn button to add:
+        <input id="enemyCount" type="number" min="1" max="100" value="100" style="width: 60px; padding: 5px; border-radius: 15px; border: 1px solid #b8860b; margin-bottom: 10px;"/></label>
+    <label>enemies
+    <button id="spawnEnemies" style="padding: 5px 10px; border-radius: 5px; border: none; background-color: #007acc; color: white; cursor: pointer;">Spawn</button></label>
+`;
 document.body.appendChild(uiContainer);
 
 document.getElementById('spawnEnemies').addEventListener('click', () => {
@@ -268,6 +280,11 @@ function animate() {
             camera.position.copy(originalPosition);
             console.log('Screen shake ended');
         }
+    }
+
+    if (floorTexture) {
+        floorTexture.offset.x += camera.position.x * 0.0015; 
+        floorTexture.offset.y += camera.position.z * 0.0001;
     }
 
     bulletArray.forEach(bullet => {
