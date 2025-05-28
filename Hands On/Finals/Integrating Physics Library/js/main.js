@@ -191,6 +191,15 @@ function shootBullet() {
 
     world.addBody(body);
     bullet.cannonBody = body;
+
+    // Add point light for flash effect
+    const flashLight = new THREE.PointLight(0xffaa00, 5, 5);
+    flashLight.position.copy(bullet.position);
+    scene.add(flashLight);
+    bullet.flashLight = flashLight;
+    bullet.creationTime = clock.getElapsedTime(); 
+    bullet.flashDuration = 0.5;
+
     bulletArray.push(bullet);
 
     if (bulletSound.isPlaying) {
@@ -204,6 +213,7 @@ function shootBullet() {
     setTimeout(() => {
         scene.remove(bullet);
         world.removeBody(body);
+        scene.remove(flashLight); 
         bulletArray.splice(bulletArray.indexOf(bullet), 1);
     }, bulletLife * 1000);
 }
@@ -248,21 +258,33 @@ function animate() {
     const originalPosition = camera.position.clone();
 
     if (shakeTime > 0) {
-        console.log('Shaking: ${shakeTime} seconds remaining');
+        console.log(`Shaking: ${shakeTime} seconds remaining`);
         camera.position.x += (Math.random() - 0.5) * shakeIntensity;
         camera.position.y += (Math.random() - 0.5) * shakeIntensity;
         camera.position.z += (Math.random() - 0.5) * shakeIntensity;
         shakeTime -= delta;
         if (shakeTime <= 0) {
             shakeTime = 0;
-
             camera.position.copy(originalPosition);
             console.log('Screen shake ended');
         }
     }
 
+    bulletArray.forEach(bullet => {
+        bullet.position.copy(bullet.cannonBody.position);
+        if (bullet.flashLight) {
+            const elapsed = clock.getElapsedTime() - bullet.creationTime;
+            const t = Math.min(elapsed / bullet.flashDuration, 1);
+            bullet.flashLight.intensity = 5 * (1 - t);
+            bullet.flashLight.position.copy(bullet.position);
+            if (t >= 1) {
+                scene.remove(bullet.flashLight);
+                bullet.flashLight = null;
+            }
+        }
+    });
+
     enemyArray.forEach(enemy => enemy.position.copy(enemy.cannonBody.position));
-    bulletArray.forEach(bullet => bullet.position.copy(bullet.cannonBody.position));
 
     const floorLevel = 1;
     if (camera.position.y < floorLevel) {
@@ -289,7 +311,7 @@ window.addEventListener('keyup', (e) => (keysPressed[e.key.toLowerCase()] = fals
 
 async function init() {
     setupScene();
-    await loadModels()
+    await loadModels();
     await loadAudio();
     setupPhysics();
     createFloor();
@@ -307,14 +329,13 @@ async function init() {
 
     statsMemory = new Stats();
     statsMemory.showPanel(2);
-    statsMemory.dom.id ='stats-memory';
+    statsMemory.dom.id = 'stats-memory';
     statsContainer.appendChild(statsMemory.dom);
 
     statsFrameTime = new Stats();
     statsFrameTime.showPanel(1);
-    statsFrameTime.dom.id ='stats-frametime';
+    statsFrameTime.dom.id = 'stats-frametime';
     statsContainer.appendChild(statsFrameTime.dom);
 
     animate();
 }
-
