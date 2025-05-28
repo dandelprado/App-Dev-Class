@@ -12,6 +12,8 @@ let dustParticles;
 const dustParticleCount = 8000;
 const dustArea = 500;
 
+let floorMesh;
+
 const clock = new THREE.Clock();
 const bulletArray = [], enemyArray = [];
 const shootVelocity = 25, bulletLife = 5;
@@ -133,22 +135,23 @@ function createFloor() {
     floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
     floorTexture.repeat.set(50, 50);
 
-    const floorMat = new THREE.MeshStandardMaterial({ 
+    const floorMat = new THREE.MeshStandardMaterial({
         map: floorTexture,
         color: 0x999999,
         roughness: 0.8,
-        metalness: 0.2
     });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
 
-    // Use a finite box instead of an infinite plane
-    const floorShape = new CANNON.Box(new CANNON.Vec3(500, 0.1, 500)); // Width 1000, depth 1000, height 0.2
-    const floorBody = new CANNON.Body({ mass: 0 }); // Static body
-    floorBody.addShape(floorShape);
-    floorBody.position.set(0, 0, 0); // Align with the visual floor (y = 0)
+    floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.rotation.x = -Math.PI / 2;
+    floorMesh.receiveShadow = true;
+    scene.add(floorMesh);
+
+    const floorBody = new CANNON.Body({
+        mass: 0,
+        shape: new CANNON.Plane(),
+        material: world.defaultContactMaterial,
+    });
+    floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     world.addBody(floorBody);
 }
 
@@ -210,7 +213,6 @@ function createDustParticles() {
     console.log('Dust particles created and added:', dustParticles);
 }
 
-
 const uiContainer = document.createElement('div');
 uiContainer.style.position = 'absolute';
 uiContainer.style.top = '2%';
@@ -237,40 +239,9 @@ function createEnemies(amount) {
     });
     enemyArray.length = 0;
 
-    const minDistance = 5; 
-    const maxAttempts = 50; 
-
     for (let i = 0; i < amount; i++) {
-        let validPosition = false;
-        let position;
-        let attempts = 0;
-
-        while (!validPosition && attempts < maxAttempts) {
-            position = new THREE.Vector3(
-                Math.random() * 500 - 250,
-                0.5,
-                Math.random() * 500 - 250
-            );
-
-            validPosition = true;
-            for (let j = 0; j < enemyArray.length; j++) {
-                const otherEnemy = enemyArray[j];
-                const distance = position.distanceTo(otherEnemy.position);
-                if (distance < minDistance) {
-                    validPosition = false;
-                    break;
-                }
-            }
-            attempts++;
-        }
-
-        if (!validPosition) {
-            console.warn(`Could not find valid position for enemy ${i + 1} after ${maxAttempts} attempts. Skipping.`);
-            continue;
-        }
-
         const enemy = enemyModel.clone();
-        enemy.position.copy(position);
+        enemy.position.set(Math.random() * 500 - 250, 0.5, Math.random() * 500 - 250);
         scene.add(enemy);
         console.log(`Spawning enemy at position: ${enemy.position.x}, ${enemy.position.y}, ${enemy.position.z}`);
 
@@ -285,6 +256,7 @@ function createEnemies(amount) {
         enemyArray.push(enemy);
     }
 }
+
 function shootBullet() {
     if (!bulletModel) return;
 
@@ -379,18 +351,26 @@ function animate() {
     handleMovement(delta);
     detectCollisions();
 
-    const originalPosition = camera.position.clone();
-
+    let shakeOffsetX = 0, shakeOffsetZ = 0;
     if (shakeTime > 0) {
-        camera.position.x += (Math.random() - 0.5) * shakeIntensity;
-        camera.position.y += (Math.random() - 0.5) * shakeIntensity;
-        camera.position.z += (Math.random() - 0.5) * shakeIntensity;
+        shakeOffsetX = (Math.random() - 0.5) * shakeIntensity;
+        shakeOffsetZ = (Math.random() - 0.5) * shakeIntensity;
         shakeTime -= delta;
         if (shakeTime <= 0) {
             shakeTime = 0;
-            camera.position.copy(originalPosition);
         }
     }
+
+    if (floorMesh) {
+        floorMesh.position.x = shakeOffsetX;
+        floorMesh.position.z = shakeOffsetZ;
+    }
+
+    enemyArray.forEach(enemy => {
+        enemy.position.copy(enemy.cannonBody.position);
+        enemy.position.x += shakeOffsetX;
+        enemy.position.z += shakeOffsetZ;
+    });
 
     if (floorTexture) {
         floorTexture.offset.x += camera.position.x * 0.0015;
@@ -411,10 +391,6 @@ function animate() {
         }
     });
 
-    enemyArray.forEach(enemy => {
-        enemy.position.copy(enemy.cannonBody.position);
-    });
-
     const cameraMinY = 1.0;
     camera.position.y = Math.max(camera.position.y, cameraMinY);
 
@@ -426,7 +402,6 @@ function animate() {
             body.position.y = minY;
             body.velocity.y = 0;
         }
-        enemy.position.copy(body.position);
     });
 
     bulletArray.forEach(bullet => {
@@ -439,7 +414,6 @@ function animate() {
         }
         bullet.position.copy(body.position);
     });
-
 
     const maxPitch = Math.PI / 2.5;
     const minPitch = -Math.PI / 2.5;
@@ -511,4 +485,3 @@ async function init() {
 
     animate();
 }
-
