@@ -32,6 +32,7 @@ function setupScene() {
     scene = new THREE.Scene();
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
+    renderer.setClearColor(0x87ceeb, 1); // Set sky-blue background
     document.getElementById('threejsContainer').appendChild(renderer.domElement);
 
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -192,7 +193,6 @@ function shootBullet() {
     world.addBody(body);
     bullet.cannonBody = body;
 
-    // Add point light for flash effect
     const flashLight = new THREE.PointLight(0xffaa00, 5, 5);
     flashLight.position.copy(bullet.position);
     scene.add(flashLight);
