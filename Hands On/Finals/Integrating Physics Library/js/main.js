@@ -6,6 +6,8 @@ import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cann
 import Stats from 'https://unpkg.com/three@0.153.0/examples/jsm/libs/stats.module.js';
 
 let renderer, scene, camera, controls, world, statsFPS, statsMemory, statsFrameTime;
+let listener, bulletSound;
+
 const clock = new THREE.Clock();
 const bulletArray = [], enemyArray = [];
 const shootVelocity = 25, bulletLife = 5;
@@ -34,6 +36,10 @@ function setupScene() {
 
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 1, 5);
+
+    listener = new THREE.AudioListener();
+    camera.add(listener);
+
     scene.add(camera);
 
     controls = new PointerLockControls(camera, document.body);
@@ -51,6 +57,19 @@ function setupScene() {
 async function loadModels() {
     enemyModel = await loadGLTF('assets/models/spaceship/spaceship.glb');
     bulletModel = await loadGLTF('assets/models/bullet/bullet.glb');
+}
+
+async function loadAudio() {
+    const audioLoader = new THREE.AudioLoader();
+    bulletSound = new THREE.Audio(listener);
+
+    return new Promise((resolve, reject) => {
+        audioLoader.load('assets/audio/gunsound.mp3', (buffer) => {
+            bulletSound.setBuffer(buffer);
+            bulletSound.setVolume(0.5);
+            resolve();
+        }, undefined, reject);
+    });
 }
 
 function loadGLTF(path) {
@@ -174,6 +193,11 @@ function shootBullet() {
     bullet.cannonBody = body;
     bulletArray.push(bullet);
 
+    if (bulletSound.isPlaying) {
+        bulletSound.stop();
+    }
+    bulletSound.play();
+
     shakeTime = shakeDuration;
     console.log('Screen shake triggered');
 
@@ -265,7 +289,8 @@ window.addEventListener('keyup', (e) => (keysPressed[e.key.toLowerCase()] = fals
 
 async function init() {
     setupScene();
-    await loadModels();
+    await loadModels()
+    await loadAudio();
     setupPhysics();
     createFloor();
     createEnemies(0);
