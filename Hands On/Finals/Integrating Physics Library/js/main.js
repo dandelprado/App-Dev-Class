@@ -117,7 +117,7 @@ function createListeners() {
 
 function createFloor() {
     const floorGeo = new THREE.PlaneGeometry(1000, 1000);
-    
+
     const textureLoader = new THREE.TextureLoader();
     floorTexture = textureLoader.load('assets/textures/floor_texture.png');
     floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
@@ -247,13 +247,23 @@ function detectCollisions() {
         enemyArray.forEach(enemy => {
             const distance = bullet.cannonBody.position.distanceTo(enemy.cannonBody.position);
             if (distance < 1) {
+                console.log('Collision detected between bullet and enemy');
+
                 const pushDirection = new CANNON.Vec3(
                     enemy.cannonBody.position.x - bullet.cannonBody.position.x,
                     0,
                     enemy.cannonBody.position.z - bullet.cannonBody.position.z
                 );
                 pushDirection.normalize();
-                enemy.cannonBody.applyImpulse(pushDirection.scale(5), enemy.cannonBody.position);
+                const enemyImpulse = pushDirection.scale(5);
+                enemy.cannonBody.applyImpulse(enemyImpulse, enemy.cannonBody.position);
+                console.log('Enemy impulse applied:', enemyImpulse);
+
+                const bounceDirection = pushDirection.scale(-1);
+                const bounceForce = 20;
+                const bulletImpulse = bounceDirection.scale(bounceForce);
+                bullet.cannonBody.applyImpulse(bulletImpulse, bullet.cannonBody.position);
+                console.log('Bullet bounce impulse applied:', bulletImpulse);
             }
         });
     });
